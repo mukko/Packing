@@ -4,7 +4,10 @@ import flash.display.Shape;
 import flash.Lib;
 
 using Lambda;
-
+/**
+*true	回転する
+*false	回転しない
+**/
 /** どこにどう配置するか */
 typedef Region = {
 	x:Int,
@@ -21,18 +24,20 @@ typedef SubTexture = {
 }
 class TexturePacking {
 	
-	public static function main() {
-		new TexturePacking();
-	}
-	
 	public function new() {
 		// 3つのサブテクスチャを作る
-		var subTextures = createVariousSubTextures(3, 100, 100);
+		var subTextures = createVariousSubTextures(3, 50, 50);
+		var regions:Array<Region> = [];
 		// 領域を描画する例
-		var regions = [
+		/*var regions = [
 			{ x: 100, y: 100, width: 40, height: 30, rotated: true },
 			{ x: 100, y: 100, width: 40, height: 30, rotated: false }
-		];
+		];*/
+		trace(subTextures);
+		sortHeightHigher(subTextures);
+		trace(subTextures);
+		configureTextures(subTextures,regions);
+		trace(regions);
 		drawRegions(regions);
 	}
 	
@@ -71,6 +76,26 @@ class TexturePacking {
 **/
 	private static function sortWidthHigher(subTextures:Array<SubTexture>):Void{
 		subTextures.sort(function(a:SubTexture,b:SubTexture) return b.width - a.width);
+	}
+	
+	/**
+	*複数のサブテクスチャの位置を決定し、regionsに突っ込む
+	* @param	subTextures サブテクスチャの集合
+	* @param	regions 描画する領域の集合
+	* とりあえず高さをずらしてみている
+**/
+	private static function configureTextures(subTextures:Array<SubTexture>,regions:Array<Region>){
+	var totalHeight = 0;
+	for(i in 0 ... subTextures.length){
+		regions[i] = {
+			x:0,
+			y:totalHeight,
+			width:subTextures[i].width,
+			height:subTextures[i].height,
+			rotated:false
+		}
+		totalHeight += subTextures[i].height;
+	}
 	}
 	
 	/**
