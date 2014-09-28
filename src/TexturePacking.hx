@@ -19,8 +19,11 @@ width:Int, height:Int,
 }
 class TexturePacking
 {
+	static inline var TEXTURE_NUMBER = 30;
+	static inline var MAX_WIDTH = 100;
+	static inline var MAX_HEIGHT = 100;
 	//fieldWidthを決定する際に使う割る値
-	static inline var DEVIDE_NUMBER = 3;
+	static inline var DEVIDE_NUMBER = 5;
 	
 	//全てのテクスチャの幅から算出した生成する画像の幅を保持
 	public var fieldWidth(default,null):Int;
@@ -28,7 +31,7 @@ class TexturePacking
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
-		var subTextures = createVariousSubTextures(10, 50, 50);
+		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
 		
 		fieldWidth = Math.floor(totalTextureWidth(subTextures)/DEVIDE_NUMBER);
