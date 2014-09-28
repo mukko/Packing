@@ -28,12 +28,13 @@ class TexturePacking
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
-		var subTextures = createVariousSubTextures(3, 50, 50);
+		var subTextures = createVariousSubTextures(10, 50, 50);
 		var regions:Array<Region> = [];
 		
+		fieldWidth = Math.floor(totalTextureWidth(subTextures)/DEVIDE_NUMBER);
 		sortHeightHigher(subTextures);
 		//trace(subTextures);
-		configureTexturesheight(subTextures, regions);
+		configureTexturesheight(subTextures, regions, fieldWidth);
 		//trace(regions);
 		drawRegions(regions);
 	}
@@ -100,32 +101,36 @@ class TexturePacking
 	*複数のサブテクスチャの位置を決定し、regionsに突っ込む
 	* @param	subTextures サブテクスチャの集合
 	* @param	regions 描画する領域の集合
+	* @param	fieldHeight 幅の値
 	* とりあえず高さをずらしてみている
 **/
 
-	private static function configureTexturesheight(subTextures:Array<SubTexture>, regions:Array<Region>)
+	private static function configureTexturesheight(subTextures:Array<SubTexture>, regions:Array<Region>, fieldWidth:Int)
 	{
 		var totalHeight = 0;
 		var totalWidth = 0;
-		var x = 0;
+		var saveHeight=0;
+		var counter=0;
 		for (i in 0 ... subTextures.length)
 		{
-			if (x < 2)
+			if (totalWidth < fieldWidth)
 			{
 				regions[i] = {
 				x:totalWidth, y:totalHeight, width:subTextures[i].width, height:subTextures[i].height, rotated:false
 				}
-				totalHeight += regions[i].height;
-				x++;
-			} else if (x == 2)
+				totalWidth += regions[i].width;
+				if(counter==0)	saveHeight = regions[i].height;
+				counter++;
+			} else
 			{
-				totalHeight = 0;
-				totalWidth = regions[i - 2].width;
+				totalHeight += saveHeight;
+				totalWidth = 0;
 				regions[i] = {
 				x:totalWidth, y:totalHeight, width:subTextures[i].width, height:subTextures[i].height, rotated:false
 				}
-				totalHeight = regions[i].height;
-				x = 1;
+				totalWidth = regions[i].width;
+				saveHeight = regions[i].height;
+				counter = 1;
 			}
 		}
 	}
