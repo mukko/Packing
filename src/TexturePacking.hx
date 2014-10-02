@@ -1,5 +1,6 @@
 package ;
 
+import flash.geom.Rectangle;
 import flash.display.Shape;
 import flash.Lib;
 
@@ -22,23 +23,17 @@ class TexturePacking
 	static inline var TEXTURE_NUMBER = 30;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
-	//fieldWidthを決定する際に使う割る値
-	static inline var DEVIDE_NUMBER = 5;
-	
-	//全てのテクスチャの幅から算出した生成する画像の幅を保持
-	public var fieldWidth(default,null):Int;
 
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
 		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
-		
-		fieldWidth = Math.floor(totalTextureWidth(subTextures)/DEVIDE_NUMBER);
+		var startPoints:Array<Rectangle> = [[subTextures[0].width, subTextures[0].height, 0, 0]];
 		sortHeightHigher(subTextures);
-		//trace(subTextures);
-		configureTexturesheight(subTextures, regions, fieldWidth);
-		//trace(regions);
+		var fieldWidth = Math.floor(totalTextureWidth(subTextures) / subTextures.length);
+		tomo_algorithm(subTextures, regions, startPoints, fieldWidth, 64, -1);
+
 		drawRegions(regions);
 	}
 
@@ -68,18 +63,18 @@ class TexturePacking
 		.map(function(s:SubTexture) return s.width * s.height)
 		.fold(function(a:Int, b:Int) return a + b, 0);
 	}
-	
+
 	/**
 	*全サブテクスチャの幅の合計値を算出する
 	* @param	subTextures サブテクスチャの集合
 	* @return	幅の合計
 **/
-	
+
 	private static function totalTextureWidth(subTextures:Array<SubTexture>):Int
 	{
-		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int,b:Int)return a+b,0);
+		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int, b:Int)return a + b, 0);
 	}
-	
+
 	/**
 	*複数のサブテクスチャを高さの昇順にソートする
 	* @param	subTextures サブテクスチャの集合
@@ -89,7 +84,7 @@ class TexturePacking
 	{
 		subTextures.sort(function(a:SubTexture, b:SubTexture) return b.height - a.height);
 	}
-	
+
 	/**
 	*複数のサブテクスチャを幅の昇順にソートする
 	* @param	subTextures サブテクスチャの集合
@@ -112,8 +107,8 @@ class TexturePacking
 	{
 		var totalHeight = 0;
 		var totalWidth = 0;
-		var saveHeight=0;
-		var counter=0;
+		var saveHeight = 0;
+		var counter = 0;
 		for (i in 0 ... subTextures.length)
 		{
 			if (totalWidth < fieldWidth)
@@ -122,7 +117,7 @@ class TexturePacking
 				x:totalWidth, y:totalHeight, width:subTextures[i].width, height:subTextures[i].height, rotated:false
 				}
 				totalWidth += regions[i].width;
-				if(counter==0)	saveHeight = regions[i].height;
+				if (counter == 0) saveHeight = regions[i].height;
 				counter++;
 			} else
 			{
@@ -135,6 +130,67 @@ class TexturePacking
 				saveHeight = regions[i].height;
 				counter = 1;
 			}
+		}
+	}
+
+	/**
+	*実装したアルゴリズム
+**/
+
+	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, startPoints:Array<Rectangle>,
+										   stageWidth:Int, stageHeight:Int, highest:Int)
+	{
+		var pointPos:Int;//startPointsの使用する番号を保持
+		var subtexturePos:Int;//subTexturesの使用する番号を保持
+
+		while (subTextures.length > 0)
+		{
+			//全ての要素に対して探索をする
+			for (i in 0...startPoints.length)
+			{
+				for (j in 0... subTextures.length)
+				{
+					var com = Math.floor(stageHeight - (startPoints[i].y + subTextures[j].height));
+					if (com > 0 || subTextures[j].width + startPoints[i].x < stageWidth || com < highest)
+					{
+						highest = com;
+						pointPos = i;
+						subtexturePos = j;
+					}
+				}
+			}
+
+			if (highest < 0) tomo_algorithm(subTextures, regions, startPoints, stageWidth, stageHeight *= 2, -1);
+
+			//regionsに要素を追加
+			regions.push([
+						x:Math.floor(startPoints[pointPos].x),
+						y:Math.floor(startPoints[pointPos].y), 
+						width:subTextures[subtexturePos].width, 
+						height:subTextures[subtexturePos].height, 
+						rotated:false
+			]);
+
+				//startPointsにポイントを追加
+				//右上
+			startPoints.push([
+						x:subTextures[subtexturePos].width + startPoints[pointPos].x, 
+						y:subTextures[subtexturePos].height, 
+						width:subTextures[subtexturePos].width, 
+						height:subTextures[subtexturePos].height
+			]);
+				//左下
+			startPoints.push([
+						x:subTextures[subtexturePos].width, 
+						y:subTextures[subtexturePos].height + startPoints[pointPos].y, 
+						width:subTextures[subtexturePos].width, 
+						height:subTextures[subtexturePos].height
+		]);
+
+			//startPointsから使ったポイントを削除
+		startPoints.remove(startPoints[pointPos]);
+			//subTexturesから使った画像を削除
+		subTextures.remove(subTextures[subtexturePos]);
 		}
 	}
 
