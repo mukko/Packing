@@ -25,25 +25,29 @@ class TexturePacking
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
 
+	var fieldWidth = 64;
+	var fieldHeight = 64;
+
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
 		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
 		sortHeightHigher(subTextures);
-		var p = new Point(0,0);
+		var p = new Point(0, 0);
 		var points:Array<Point> = [p];
 		var rectangle = new Rectangle(0, 0, subTextures[0].width, subTextures[0].height);
 		var startPoints:Array<Rectangle> = [rectangle];
 
 		trace(subTextures);
 
-		var fieldWidth = Math.floor(totalTextureWidth(subTextures) / Math.floor(subTextures.length));
-		var fieldHeight = 64;
+		//var fieldWidth = Math.floor(totalTextureWidth(subTextures) / Math.floor(subTextures.length));
+		//var fieldWidth = 64;
+		//var fieldHeight = 64;
 		tomo_algorithm(subTextures, regions, points, fieldWidth, 64);
-		trace(regions);
 		drawRegions(regions);
-		drawLine(fieldWidth,fieldHeight);
+		trace(fieldWidth, fieldHeight);
+		drawLine(fieldWidth, fieldHeight);
 	}
 
 	/**
@@ -141,33 +145,45 @@ class TexturePacking
 			}
 		}
 	}
-	
-	private static function test_algorithm(subTextures:Array<SubTexture>,regions:Array<Region>,stageWidth:Int){
-	//var points:Array<Point> = {0,0};
-	//while(subTextures.)
+
+	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, stageWidth:Int)
+	{
+		//var points:Array<Point> = {0,0};
+		//while(subTextures.)
 	}
 	/**
 	*実装したアルゴリズム
 **/
 
-	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>,
-										   stageWidth:Int, stageHeight:Int):Void
+	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, stageWidth:Int,
+										   stageHeight:Int):Void
 	{
-		var pointPos = 0;//startPointsの使用する番号を保持
-		var subtexturePos = 0;//subTexturesの使用する番号を保持
-		trace(stageHeight);
+		//var pointPos = 0;//startPointsの使用する番号を保持
+		//var subtexturePos = 0;//subTexturesの使用する番号を保持
 		var lower = 10000;//高さとstageHeightの差が低い物が保持される
-		while (subTextures.length > 0)
+		while (true)
 		{
+			var pointPos = 0;//startPointsの使用する番号を保持
+			var subtexturePos = 0;//subTexturesの使用する番号を保持
 			//全ての要素に対して探索をする
 			for (i in 0...points.length)
 			{
-				for (j in 0... subTextures.length)
+				for (j in 0...subTextures.length)
 				{
 					var com;
-					if(stageHeight - subTextures[j].height < 0) tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight*2);
-					if(points[i+1] == null) com = Math.floor(stageHeight - (points[i].y + subTextures[j].height));
-					else com = Math.floor((points[i].y + points[i+1].y) - (points[i].y + subTextures[j].height));
+					if (stageHeight - subTextures[j].height < 0)
+					{
+						stageHeight *= 2;
+						tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight);
+					}
+					if (stageWidth - subTextures[j].width < 0)
+					{
+						stageWidth *= 2;
+						tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight);
+					}
+					if (points[i + 1] == null) com = Math.floor(stageHeight -
+																(points[i].y + subTextures[j].height)); else com = Math.floor(points[i].y -
+																															  subTextures[j].height);
 					//if (com < 0) tomo_algorithm(subTextures, regions, startPoints, stageWidth, stageHeight *= 2);
 					if (com >= 0 && subTextures[j].width + points[i].x < stageWidth && com < lower)
 					{
@@ -177,20 +193,20 @@ class TexturePacking
 					}
 				}
 			}
-			
+
 			//高さがどれも足りなかったら高さを2倍にしてもう一度
 			//if (lower == 10000) tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight * 2);
 
 			var sTstPos = subTextures[subtexturePos];
 			var sPpPos = points[pointPos];
-			
+
 			//regionsに要素を追加
 			var region:Region = {
 			x:Math.floor(sPpPos.x), y:Math.floor(sPpPos.y), width:sTstPos.width, height:sTstPos.height, rotated:false
 			};
 
 			regions.push(region);
-			
+
 			//startPointsにポイントを追加
 			//左下
 			var pointRect1 = new Point(
@@ -200,16 +216,18 @@ class TexturePacking
 			var pointRect2 = new Point(
 			sTstPos.width + sPpPos.x + 1, sPpPos.y);
 			points.push(pointRect2);
-			
+
 			//startPointsから使ったポイントを削除
 			points.remove(sPpPos);
 			//subTexturesから使った画像を削除
 			subTextures.remove(sTstPos);
-			
+
 			trace(sTstPos);
 			trace(regions);
 			trace(subTextures);
 			trace(points);
+
+			if (subTextures.length == 0) break;
 		}
 	}
 
@@ -242,15 +260,17 @@ class TexturePacking
 		}
 	}
 
-	private static function drawLine(width:Int,height:Int)
+	private static function drawLine(width:Int, height:Int)
 	{
-			var w:Shape = new Shape();
-			w.graphics.moveTo(0,height);
-			w.graphics.lineTo(width,height);
-			var h:Shape = new Shape();
-			h.graphics.moveTo(width,0);
-			h.graphics.lineTo(width,height);
-			Lib.current.stage.addChild(w);
-			Lib.current.stage.addChild(h);
+		var w:Shape = new Shape();
+		w.graphics.lineStyle(1, 0x00FF00);
+		w.graphics.moveTo(0, height);
+		w.graphics.lineTo(width, height);
+		var h:Shape = new Shape();
+		h.graphics.lineStyle(1, 0x00FF00);
+		h.graphics.moveTo(width, 0);
+		h.graphics.lineTo(width, height);
+		Lib.current.stage.addChild(w);
+		Lib.current.stage.addChild(h);
 	}
 }
