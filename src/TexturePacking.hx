@@ -29,7 +29,8 @@ class TexturePacking
 		// 3つのサブテクスチャを作る
 		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
-		var startPoints:Array<Rectangle> = [[subTextures[0].width, subTextures[0].height, 0, 0]];
+		var rectangle = new Rectangle(0,0,subTextures[0].width,subTextures[0].height);
+		var startPoints:Array<Rectangle> = [rectangle];
 		sortHeightHigher(subTextures);
 		var fieldWidth = Math.floor(totalTextureWidth(subTextures) / subTextures.length);
 		tomo_algorithm(subTextures, regions, startPoints, fieldWidth, 64, -1);
@@ -138,10 +139,10 @@ class TexturePacking
 **/
 
 	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, startPoints:Array<Rectangle>,
-										   stageWidth:Int, stageHeight:Int, highest:Int)
+										   stageWidth:Int, stageHeight:Int, highest:Int):Void
 	{
-		var pointPos:Int;//startPointsの使用する番号を保持
-		var subtexturePos:Int;//subTexturesの使用する番号を保持
+		var pointPos = 0;//startPointsの使用する番号を保持
+		var subtexturePos = 0;//subTexturesの使用する番号を保持
 
 		while (subTextures.length > 0)
 		{
@@ -163,29 +164,31 @@ class TexturePacking
 			if (highest < 0) tomo_algorithm(subTextures, regions, startPoints, stageWidth, stageHeight *= 2, -1);
 
 			//regionsに要素を追加
-			regions.push([
+			var region:Region = {
 						x:Math.floor(startPoints[pointPos].x),
-						y:Math.floor(startPoints[pointPos].y), 
+						y:Math.floor(startPoints[pointPos].y),
 						width:subTextures[subtexturePos].width, 
 						height:subTextures[subtexturePos].height, 
 						rotated:false
-			]);
+		};
+			regions.push(region);
 
 				//startPointsにポイントを追加
 				//右上
-			startPoints.push([
-						x:subTextures[subtexturePos].width + startPoints[pointPos].x, 
-						y:subTextures[subtexturePos].height, 
-						width:subTextures[subtexturePos].width, 
-						height:subTextures[subtexturePos].height
-			]);
+				var pointRect1 = new Rectangle(
+						subTextures[subtexturePos].width + startPoints[pointPos].x, 
+						subTextures[subtexturePos].height, 
+						subTextures[subtexturePos].width, 
+						subTextures[subtexturePos].height);
+			startPoints.push(pointRect1);
 				//左下
-			startPoints.push([
-						x:subTextures[subtexturePos].width, 
-						y:subTextures[subtexturePos].height + startPoints[pointPos].y, 
-						width:subTextures[subtexturePos].width, 
-						height:subTextures[subtexturePos].height
-		]);
+				var pointRect2 = new Rectangle(
+						subTextures[subtexturePos].width, 
+						subTextures[subtexturePos].height + startPoints[pointPos].y, 
+						subTextures[subtexturePos].width, 
+						subTextures[subtexturePos].height
+				);
+			startPoints.push(pointRect2);
 
 			//startPointsから使ったポイントを削除
 		startPoints.remove(startPoints[pointPos]);
