@@ -1,7 +1,7 @@
 package ;
 
+import Reflect;
 import flash.geom.Point;
-import flash.geom.Rectangle;
 import flash.display.Shape;
 import flash.Lib;
 
@@ -19,34 +19,47 @@ x:Int, y:Int, width:Int, height:Int, rotated:Bool,
 typedef SubTexture = {
 width:Int, height:Int,
 }
+
 class TexturePacking
 {
-	static inline var TEXTURE_NUMBER = 5;
+	static inline var TEXTURE_NUMBER = 3;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
-
-	var fieldWidth = 64;
-	var fieldHeight = 64;
-
+	
 	public function new()
 	{
+		var fieldWidth = 32;
+		var fieldHeight = 32;
 		// 3つのサブテクスチャを作る
 		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
+		//高さ順にソート
 		sortHeightHigher(subTextures);
-		var p = new Point(0, 0);
-		var points:Array<Point> = [p];
-		var rectangle = new Rectangle(0, 0, subTextures[0].width, subTextures[0].height);
-		var startPoints:Array<Rectangle> = [rectangle];
-
+		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
+		var first = subTextures[0];
+		trace(first);
+		//fieldの値をそれぞれチェック。納まる大きさに変更する
+		fieldWidth = field_check(fieldWidth,first.width);
+		fieldHeight = field_check(fieldHeight, first.height);
+		trace(fieldWidth,fieldHeight);
+		//regionsに最も大きい要素を入れる
+		var r:Region = {x:0,y:0,width:first.width,height:first.height,rotated:false};
+		regions.push(r);
+		//pointsに座標を入れる
+		var points:Array<Point> = [new Point(0 ,first.height+1),new Point(first.width+1,0)];
+		trace(points);
+		//レベル配列をつくる
+		var level_height:Array<Int> = [fieldHeight,first.height+1];
+		//幅のレベルはひとつだけだが、都合上配列になった
+		var level_width:Array<Int> = [fieldWidth];
+		
+		//使い終わったsubTexturesは削除する
+		subTextures.remove(first);
 		trace(subTextures);
-
-		//var fieldWidth = Math.floor(totalTextureWidth(subTextures) / Math.floor(subTextures.length));
-		//var fieldWidth = 64;
-		//var fieldHeight = 64;
-		tomo_algorithm(subTextures, regions, points, fieldWidth, 64);
+		//tomo_algorithm(subTextures, regions, points, fieldWidth, 64);
+		tomo_algorithm(subTextures, regions, points, level_width, level_height, fieldWidth, fieldHeight);
+		trace(subTextures);
 		drawRegions(regions);
-		trace(fieldWidth, fieldHeight);
 		drawLine(fieldWidth, fieldHeight);
 	}
 
@@ -145,90 +158,92 @@ class TexturePacking
 			}
 		}
 	}
-
-	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, stageWidth:Int)
+	
+	/**
+	*フィールドに納まらなければ、納まる大きさまでフィールドを拡張するメソッド
+	* 拡張する大きさは自分で変えられるように、メソッドを分けた
+	* @param	field 幅、もしくは高さ
+	* @param	value 入れたいオブジェクトの大きさを足した合計の高さ
+**/
+	private static function field_check(field:Int, value:Int):Int
 	{
-		//var points:Array<Point> = {0,0};
-		//while(subTextures.)
+		while(field <= value){
+		field = field_double_expand(field);
+		}
+		return field;
 	}
 	/**
-	*実装したアルゴリズム
+	*二倍した値を返すメソッド
+	* 今回はfield_checkの拡張幅を2乗の値にしたかったので
 **/
-
-	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, stageWidth:Int,
-										   stageHeight:Int):Void
+	private static function field_double_expand(field:Int):Int
 	{
-		//var pointPos = 0;//startPointsの使用する番号を保持
-		//var subtexturePos = 0;//subTexturesの使用する番号を保持
-		var lower = 10000;//高さとstageHeightの差が低い物が保持される
-		while (true)
-		{
-			var pointPos = 0;//startPointsの使用する番号を保持
-			var subtexturePos = 0;//subTexturesの使用する番号を保持
-			//全ての要素に対して探索をする
-			for (i in 0...points.length)
-			{
-				for (j in 0...subTextures.length)
-				{
-					var com;
-					if (stageHeight - subTextures[j].height < 0)
-					{
-						stageHeight *= 2;
-						tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight);
-					}
-					if (stageWidth - subTextures[j].width < 0)
-					{
-						stageWidth *= 2;
-						tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight);
-					}
-					if (points[i + 1] == null) com = Math.floor(stageHeight -
-																(points[i].y + subTextures[j].height)); else com = Math.floor(points[i].y -
-																															  subTextures[j].height);
-					//if (com < 0) tomo_algorithm(subTextures, regions, startPoints, stageWidth, stageHeight *= 2);
-					if (com >= 0 && subTextures[j].width + points[i].x < stageWidth && com < lower)
-					{
-						lower = com;
-						pointPos = i;
-						subtexturePos = j;
-					}
-				}
-			}
-
-			//高さがどれも足りなかったら高さを2倍にしてもう一度
-			//if (lower == 10000) tomo_algorithm(subTextures, regions, points, stageWidth, stageHeight * 2);
-
-			var sTstPos = subTextures[subtexturePos];
-			var sPpPos = points[pointPos];
-
-			//regionsに要素を追加
-			var region:Region = {
-			x:Math.floor(sPpPos.x), y:Math.floor(sPpPos.y), width:sTstPos.width, height:sTstPos.height, rotated:false
-			};
-
-			regions.push(region);
-
-			//startPointsにポイントを追加
-			//左下
-			var pointRect1 = new Point(
-			sPpPos.x, sTstPos.height + sPpPos.y + 1);
-			points.push(pointRect1);
-			//右上
-			var pointRect2 = new Point(
-			sTstPos.width + sPpPos.x + 1, sPpPos.y);
-			points.push(pointRect2);
-
-			//startPointsから使ったポイントを削除
-			points.remove(sPpPos);
-			//subTexturesから使った画像を削除
-			subTextures.remove(sTstPos);
-
-			trace(sTstPos);
-			trace(regions);
-			trace(subTextures);
-			trace(points);
-
-			if (subTextures.length == 0) break;
+		return field *= 2;
+	}
+	/**
+	*もっとも近いレベルの番号を返すメソッド
+	*どれも当てはまらなければ-1が返る
+**/
+	private static function search_nearest_level(levels:Array<Int>, point:Int):Int
+	{
+		var deg = 10000;
+		var i = 0;
+		var nearest_number = -1;
+		for(level in levels){
+		var temp = level - point;
+		if(temp > 0 && temp < deg){
+		deg = temp;
+		nearest_number = i;
 		}
+		i++;
+		}
+		return nearest_number;
+	}
+	
+	private static function check_array_empty(array:Array<SubTexture>):Bool
+	{
+		if(array.length == 0) return false;
+		return true;
+	}
+	
+	/**
+	*実装したアルゴリズム
+	* 途中で終わらさせたい場合があるので、とにかく1をreturnすることにした
+**/
+	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, level_width:Array<Int>,level_height:Array<Int>, stageWidth:Int,stageHeight:Int):Void
+	{
+	//if(subTextures[0] == null)	return 1;
+	var points = points.copy();
+	while(check_array_empty(subTextures)){
+	for(pt in points){//Reflect.field(points)の方がいいのかな?
+		var point:Point = pt;
+		var px = Math.floor(point.x);
+		var py = Math.floor(point.y);
+		var level_h = search_nearest_level(level_height, py);
+		var level_w = search_nearest_level(level_width, px);
+		var dw;
+		var dh;
+		for(s in subTextures){
+		dw = level_w - px - s.width;
+		dh = level_h - py - s.height;
+		if(dw > 0 && dh > 0){
+		
+		if(px == 0) level_height.push(py+s.height);
+		var region:Region = {x:Math.floor(px),y:Math.floor(py),width:s.width,height:s.height,rotated:false};
+		regions.push(region);
+		var p = new Point(px,py);
+		points.remove(p);
+		var p_push1 = new Point(px,py + s.height+1);
+		points.push(p_push1);
+		var p_push2 = new Point(px + s.width+1, py);
+		points.push(p_push2);
+		var st:SubTexture = {width:s.width,height:s.height};
+		subTextures.remove(st);
+		}
+		else subTextures.pop();//とりあえず、はみだしたら削除しちゃう
+		}
+	}
+	}
 	}
 
 	/**
