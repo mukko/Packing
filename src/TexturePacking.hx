@@ -1,5 +1,7 @@
 package ;
 
+import UInt;
+import TexturePacking.Region;
 import Math;
 import flash.geom.Point;
 import flash.display.Shape;
@@ -22,10 +24,10 @@ width:Int, height:Int,
 
 class TexturePacking
 {
-//7個以上だとランタイムエラー発生
-	static inline var TEXTURE_NUMBER = 6;
-	static inline var MAX_WIDTH = 50;
-	static inline var MAX_HEIGHT = 50;
+	//12個以上だとタイムアウトエラー発生しやすい
+	static inline var TEXTURE_NUMBER = 12;
+	static inline var MAX_WIDTH = 100;
+	static inline var MAX_HEIGHT = 100;
 
 	//書き込み、読み出しはどこからでも可能
 	static public var fieldWidth(default, default) = 32;
@@ -39,7 +41,7 @@ class TexturePacking
 		//高さ順にソート
 		sortHeightHigher(subTextures);
 		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
-		var first = subTextures[0];
+		var first:SubTexture = subTextures[0];
 		//fieldの値をそれぞれチェック。納まる大きさに変更する
 		fieldWidth = field_check(fieldWidth, first.width);
 		fieldHeight = field_check(fieldHeight, first.height);
@@ -55,10 +57,10 @@ class TexturePacking
 
 		//使い終わったsubTexturesは削除する
 		subTextures.remove(first);
-		//tomo_algorithm(subTextures, regions, points, fieldWidth, 64);
 		tomo_algorithm(subTextures, regions, points, level_width, level_height);
 		drawRegions(regions);
 		drawLine(fieldWidth, fieldHeight);
+		trace("w:"+fieldWidth+",h:"+fieldHeight);
 	}
 
 	/**
@@ -188,11 +190,11 @@ class TexturePacking
 
 	private static function search_nearest_level(levels:Array<Int>, point:Int):Int
 	{
-		var deg = 10000;
-		var nearest_number = 0;
+		var deg:UInt = 10000;
+		var nearest_number:UInt = 0;
 		for (level in levels)
 		{
-			var temp = level - point;
+			var temp:UInt = level - point;
 			if (temp > 0 && temp < deg)
 			{
 				deg = temp;
@@ -207,7 +209,31 @@ class TexturePacking
 		if (array.length == 0) return false;
 		return true;
 	}
-
+	/**
+	*絶対値を返すメソッド
+	* @param	値
+	* @rerturn	|値|
+**/
+	private static function getAbsoluteValue(num:Int):Int
+	{
+		return  num < 0 ? -num : num;
+	}
+	private static function push_pop_process(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, point:Point,sub:SubTexture):Void
+	{
+		var point_x :UInt = Math.floor(point.x);
+		var point_y:UInt = Math.floor(point.y);
+		var sub_width:UInt = sub.width;
+		var sub_height:UInt = sub.height;
+		var region:Region = {x:point_x, y:point_y, width:sub_width, height:sub_height, rotated:false};
+		regions.push(region);
+		points.remove(point);
+		var p_push1:Point = new Point(point_x, point_y + sub_height + 1);
+		points.push(p_push1);
+		var p_push2:Point = new Point(point_x + sub_width + 1, point_y);
+		points.push(p_push2);
+		subTextures.remove(sub);
+	}
+	
 	/**
 	*実装したアルゴリズム
 **/
@@ -219,72 +245,62 @@ class TexturePacking
 		while (check_array_empty(subTextures) == true)
 		{
 			//入るとき用変数たち
-			var level_num:Int = 0;
+			var level_num:UInt = 0;
 			var minimum:Int = 1000;
 			var min_point:Point = new Point(0, 0);
 			var min_sub:SubTexture = {width:0, height:0};
 			//入らないとき用変数たち
-			var out_number:Int = 0;
-			var out_minimum:Int = 100000;
+			var out_number:UInt = 0;
+			var out_minimum:UInt = 100000;
 			var out_point:Point = new Point(0, 0);
 			var out_sub:SubTexture = {width:0, height:0};
 
-			for (pt in points)
+			for (i in 0...points.length)
 			{
-				var point:Point = pt;
-				var px = Math.floor(point.x);
-				var py = Math.floor(point.y);
+				var point:Point = points[i];
+				var px:UInt = Math.floor(point.x);
+				var py:UInt = Math.floor(point.y);
 				//もっとも近いレベルを保持
-				var level_h = search_nearest_level(level_height, py);
-				var level_w = search_nearest_level(level_width, px);
-				var dw;
-				var dh;
-				for (s in subTextures)
+				var level_h:Int = search_nearest_level(level_height, py);
+				var level_w:Int = search_nearest_level(level_width, px);
+				var dw:Int;
+				var dh:Int;
+				for (j in 0...subTextures.length)
 				{
-					dw = level_w - px - s.width;
-					dh = level_h - py - s.height;
+					var st:SubTexture = subTextures[j];
+					dw = level_w - px - st.width;
+					dh = level_h - py - st.height;
 					if (dw > 0 && dh > 0 && dh < minimum)
 					{
 						minimum = dh;
 						min_point = point;
-						min_sub = s;
+						min_sub = st;
 					} else if ((dw < 0 && dh > 0) || (dw > 0 && dh < 0) || (dw < 0 && dh < 0))
 					{
-						var dimention:Int = Math.floor(Math.abs(dw * dh));
+						var dimention:UInt = getAbsoluteValue(dw * dh);
 						if (dimention < out_minimum)
 						{
 							out_minimum = dimention;
 							out_point = point;
-							out_sub = s;
+							out_sub = st;
 						}
 					}
 				}
 			}
 			if (minimum == 1000)
 			{
-				var check_w = Math.floor(out_point.x + out_sub.width);
-				var check_h = Math.floor(out_point.y + out_sub.height);
-				//この拡張する部分が動かない
+				var check_w:Int = Math.floor(out_point.x + out_sub.width);
+				var check_h:Int = Math.floor(out_point.y + out_sub.height);
 				fieldWidth = field_check(fieldWidth, check_w);
 				fieldHeight = field_check(fieldHeight, check_h);
 				level_width.pop();
 				level_width.push(fieldWidth);
 				level_height.remove(level_height[0]);
-				level_height.insert(0,fieldHeight);
-			}else{
-			var mx = min_point.x;
-			var my = min_point.y;
-			/*if (mx == 0)*/ level_height.push(Math.floor(my + min_sub.height));
-			var region:Region;
-			region = {x:Math.floor(mx), y:Math.floor(my), width:min_sub.width, height:min_sub.height, rotated:false};
-			//else region = {x:Math.floor(out_point.x),y:Math.floor(out_point.y),width:out_sub.width,height:out_sub.height,rotated:false};
-			regions.push(region);
-			points.remove(min_point);
-			var p_push1 = new Point(mx, my + min_sub.height + 1);
-			points.push(p_push1);
-			var p_push2 = new Point(mx + min_sub.width + 1, my);
-			points.push(p_push2);
-			subTextures.remove(min_sub);
+				level_height.insert(0, fieldHeight);
+			} else
+			{
+				level_height.push(Math.floor(min_point.y + min_sub.height));
+				push_pop_process(subTextures,regions,points,min_point,min_sub);
 			}
 		}
 	}
