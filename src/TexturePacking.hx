@@ -22,14 +22,15 @@ width:Int, height:Int,
 
 class TexturePacking
 {
-	static inline var TEXTURE_NUMBER = 5;
-	static inline var MAX_WIDTH = 100;
-	static inline var MAX_HEIGHT = 100;
+//7個以上だとランタイムエラー発生
+	static inline var TEXTURE_NUMBER = 6;
+	static inline var MAX_WIDTH = 50;
+	static inline var MAX_HEIGHT = 50;
 
-//書き込み、読み出しはどこからでも可能
+	//書き込み、読み出しはどこからでも可能
 	static public var fieldWidth(default, default) = 32;
 	static public var fieldHeight(default, default) = 32;
-	
+
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
@@ -40,28 +41,24 @@ class TexturePacking
 		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
 		var first = subTextures[0];
 		//fieldの値をそれぞれチェック。納まる大きさに変更する
-		fieldWidth = field_check(fieldWidth,first.width);
+		fieldWidth = field_check(fieldWidth, first.width);
 		fieldHeight = field_check(fieldHeight, first.height);
 		//regionsに最も大きい要素を入れる
-		var r:Region = {x:0,y:0,width:first.width,height:first.height,rotated:false};
+		var r:Region = {x:0, y:0, width:first.width, height:first.height, rotated:false};
 		regions.push(r);
 		//pointsに座標を入れる
-		var points:Array<Point> = [new Point(0 ,first.height+1),new Point(first.width+1,0)];
-		trace(points);
+		var points:Array<Point> = [new Point(0, first.height + 1), new Point(first.width + 1, 0)];
 		//レベル配列をつくる
-		var level_height:Array<Int> = [fieldHeight,first.height+1];
+		var level_height:Array<Int> = [fieldHeight, first.height + 1];
 		//幅のレベルはひとつだけだが、都合上配列になった
 		var level_width:Array<Int> = [fieldWidth];
-		
+
 		//使い終わったsubTexturesは削除する
 		subTextures.remove(first);
 		//tomo_algorithm(subTextures, regions, points, fieldWidth, 64);
-		tomo_algorithm(subTextures, regions, points, level_width, level_height, fieldWidth, fieldHeight);
-		subTextures.pop();
+		tomo_algorithm(subTextures, regions, points, level_width, level_height);
 		drawRegions(regions);
 		drawLine(fieldWidth, fieldHeight);
-		trace(fieldWidth,fieldHeight);
-		trace(regions);
 	}
 
 	/**
@@ -159,17 +156,19 @@ class TexturePacking
 			}
 		}
 	}
-	
+
 	/**
 	*フィールドに納まらなければ、納まる大きさまでフィールドを拡張するメソッド
 	* 拡張する大きさは自分で変えられるように、メソッドを分けた
 	* @param	field 幅、もしくは高さ
 	* @param	value 入れたいオブジェクトの大きさを足した合計の高さ
 **/
+
 	private static function field_check(field:Int, value:Int):Int
 	{
-		while(field <= value){
-		field = field_double_expand(field);
+		while (field <= value)
+		{
+			field = field_double_expand(field);
 		}
 		return field;
 	}
@@ -177,6 +176,7 @@ class TexturePacking
 	*二倍した値を返すメソッド
 	* 今回はfield_checkの拡張幅を2乗の値にしたかったので
 **/
+
 	private static function field_double_expand(field:Int):Int
 	{
 		return field *= 2;
@@ -185,99 +185,110 @@ class TexturePacking
 	*もっとも近いレベルの大きさを返すメソッド
 	*どれも当てはまらなければ-1が返る
 **/
+
 	private static function search_nearest_level(levels:Array<Int>, point:Int):Int
 	{
 		var deg = 10000;
 		var nearest_number = 0;
-		for(level in levels){
-		var temp = level - point;
-		if(temp > 0 && temp < deg){
-		deg = temp;
-		nearest_number = level;
-		}
+		for (level in levels)
+		{
+			var temp = level - point;
+			if (temp > 0 && temp < deg)
+			{
+				deg = temp;
+				nearest_number = level;
+			}
 		}
 		return nearest_number;
 	}
-	
+
 	private static function check_array_empty(array:Array<SubTexture>):Bool
 	{
-		if(array.length == 0) return false;
+		if (array.length == 0) return false;
 		return true;
 	}
-	
+
 	/**
 	*実装したアルゴリズム
 **/
-	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, level_width:Array<Int>,level_height:Array<Int>, fieldwidth:Int,fieldheight:Int):Void
+
+	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>,
+										   level_width:Array<Int>, level_height:Array<Int>):Void
 	{
-	var points = points.copy();
-	var sw = 0;
-	while(check_array_empty(subTextures) == true){
-	//入るとき用変数たち
-		//var number:Int = 0;
-		var level_num:Int = 0;
-		var minimum:Int = 1000;
-		var min_point:Point = new Point(0,0);
-		var min_sub:SubTexture = {width:0,height:0};
-	//入らないとき用変数たち
-		var out_number:Int = 0;
-		var out_minimum:Int = 100000;
-		var out_point:Point = new Point(0,0);
-		var out_sub:SubTexture = {width:0,height:0};
-		
-	for(pt in points){
-		var point:Point = pt;
-		var px = Math.floor(point.x);
-		var py = Math.floor(point.y);
-		//もっとも近いレベルを保持
-		var level_h = search_nearest_level(level_height, py);
-		var level_w = search_nearest_level(level_width, px);
-		var dw;
-		var dh;
-		for(s in subTextures){
-		dw = level_w - px - s.width;
-		dh = level_h - py - s.height;
-		if(dw > 0 && dh > 0 && dh < minimum){
-		minimum = dh;
-		min_point = point;
-		min_sub = s;
-		}else if((dw < 0 && dh > 0) || (dw > 0 && dh < 0) || (dw < 0 && dh < 0)){
-		var dimention:Int = Math.floor(Math.abs(dw * dh));
-		if(dimention < out_minimum){
-		out_minimum = dimention;
-		out_point = point;
-		out_sub = s;
+		var points = points.copy();
+		while (check_array_empty(subTextures) == true)
+		{
+			//入るとき用変数たち
+			var level_num:Int = 0;
+			var minimum:Int = 1000;
+			var min_point:Point = new Point(0, 0);
+			var min_sub:SubTexture = {width:0, height:0};
+			//入らないとき用変数たち
+			var out_number:Int = 0;
+			var out_minimum:Int = 100000;
+			var out_point:Point = new Point(0, 0);
+			var out_sub:SubTexture = {width:0, height:0};
+
+			for (pt in points)
+			{
+				var point:Point = pt;
+				var px = Math.floor(point.x);
+				var py = Math.floor(point.y);
+				//もっとも近いレベルを保持
+				var level_h = search_nearest_level(level_height, py);
+				var level_w = search_nearest_level(level_width, px);
+				var dw;
+				var dh;
+				for (s in subTextures)
+				{
+					dw = level_w - px - s.width;
+					dh = level_h - py - s.height;
+					if (dw > 0 && dh > 0 && dh < minimum)
+					{
+						minimum = dh;
+						min_point = point;
+						min_sub = s;
+					} else if ((dw < 0 && dh > 0) || (dw > 0 && dh < 0) || (dw < 0 && dh < 0))
+					{
+						var dimention:Int = Math.floor(Math.abs(dw * dh));
+						if (dimention < out_minimum)
+						{
+							out_minimum = dimention;
+							out_point = point;
+							out_sub = s;
+						}
+					}
+				}
+			}
+			if (minimum == 1000)
+			{
+				var check_w = Math.floor(out_point.x + out_sub.width);
+				var check_h = Math.floor(out_point.y + out_sub.height);
+				//この拡張する部分が動かない
+				fieldWidth = field_check(fieldWidth, check_w);
+				fieldHeight = field_check(fieldHeight, check_h);
+				level_width.pop();
+				level_width.push(fieldWidth);
+				level_height.remove(level_height[0]);
+				level_height.insert(0,fieldHeight);
+			}else{
+			var mx = min_point.x;
+			var my = min_point.y;
+			/*if (mx == 0)*/ level_height.push(Math.floor(my + min_sub.height));
+			var region:Region;
+			region = {x:Math.floor(mx), y:Math.floor(my), width:min_sub.width, height:min_sub.height, rotated:false};
+			//else region = {x:Math.floor(out_point.x),y:Math.floor(out_point.y),width:out_sub.width,height:out_sub.height,rotated:false};
+			regions.push(region);
+			points.remove(min_point);
+			var p_push1 = new Point(mx, my + min_sub.height + 1);
+			points.push(p_push1);
+			var p_push2 = new Point(mx + min_sub.width + 1, my);
+			points.push(p_push2);
+			subTextures.remove(min_sub);
+			}
 		}
-		}
 	}
-	}
-	trace(minimum);
-	trace(fieldWidth,fieldHeight);
-	trace(regions);
-	if(minimum == 1000){
-		var check_w = Math.floor(out_point.x + out_sub.width);
-		var check_h = Math.floor(out_point.y + out_sub.height);
-		fieldWidth = field_check(fieldWidth, check_w);
-		fieldHeight = field_check(fieldHeight, check_h);
-	}
-		var mx = min_point.x;
-		var my = min_point.y;
-		if(mx == 0) level_height.push(Math.floor(my+min_sub.height));
-		var region:Region;
-		region = {x:Math.floor(mx),y:Math.floor(my),width:min_sub.width,height:min_sub.height,rotated:false};
-		//else region = {x:Math.floor(out_point.x),y:Math.floor(out_point.y),width:out_sub.width,height:out_sub.height,rotated:false};
-		regions.push(region);
-		points.remove(min_point);
-		var p_push1 = new Point(mx,my + min_sub.height+1);
-		points.push(p_push1);
-		var p_push2 = new Point(mx + min_sub.width+1, my);
-		points.push(p_push2);
-		subTextures.remove(min_sub);
-	}
-	trace(subTextures);
-	trace("succece!!!!");
-	}
-	
+
 
 	/**
 	 * （確認用）領域をステージ（flash.display.Stage）に描画する
