@@ -63,7 +63,7 @@ class TexturePacking
 		//drawLine(fieldWidth, fieldHeight);
 		//trace("w:"+fieldWidth+",h:"+fieldHeight);
 	}
-	
+
 	/**
 	 * 任意の数のランダムな大きさのサブテクスチャを生成する
 	 * @param	numSubTextures 生成するサブテクスチャの数
@@ -101,11 +101,12 @@ class TexturePacking
 	{
 		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int, b:Int)return a + b, 0);
 	}
-	
+
 	/**
 *長方形をソート昇順にソート
 * @param	rectangles 長方形の集合
 **/
+
 	private static function sortRectHigher(rectangles:Array<Rectangle>):Void
 	{
 		rectangles.sort(function(a:Rectangle, b:Rectangle) return Math.floor(b.height - a.height));
@@ -218,17 +219,19 @@ class TexturePacking
 * @param	array サブテクスチャ配列
 * @return	あればfalse,無ければtrue
 **/
+
 	private static function check_subTextures_empty(array:Array<SubTexture>):Bool
 	{
 		if (array.length == 0) return true;
 		return false;
 	}
-	
+
 	/**
 	*絶対値を返すメソッド
 	* @param	値
 	* @rerturn	|値|
 **/
+
 	private static function getAbsoluteValue(num:Int):Int
 	{
 		return num < 0 ? -num : num;
@@ -321,62 +324,90 @@ class TexturePacking
 			}
 		}
 	}
-	
+
 	/**
 	* fieldとの面積の差を返す
 	* @param	width 幅
 	* @param	height 高さ
 	* @param	field フィールドとなっている長方形
 **/
+
 	private static function calc_gap(width:Int, height:Int, field:Rectangle):Int
 	{
-		return Math.floor((field.width * field.height) - (width * height)); 
+		return Math.floor((field.width * field.height) - (width * height));
 	}
-	
+	/**
+	*新たな長方形領域を算出,そして突っ込む
+	* @param	areas	長方形領域の集合
+	* @param	rect	使った長方形
+	* @oaram	size	大きさの限界値
+**/
+
+	private static function make_new_rectangle(areas:Array<Rectangle>, rect:Rectangle, size:Int):Void
+	{
+		var ry = rect.y + rect.height;
+		var rx = rect.x + rect.width;
+		var rect1:Rectangle = new Rectangle(rect.x, ry, size - rx, size - ry);
+		var rect2:Rectangle = new Rectangle(rx, rect.y, size - rx, size - ry);
+		areas.push(rect1);
+		areas.push(rect2);
+		areas.remove(rect);
+	}
+
 	/**
 	*再スタートしたアルゴリズム
 **/
-	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>,size:Int):Array<Region>
+
+	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>,
+										   size:Int):Array<Region>
 	{
 		var rect_num:Int;
-		var sub_num:Int;
-		var bool:Bool;
+		var sub_num:Int = 0;
+		var bool:Bool = false;
 		var minimum:Int;
-		while(true)
+		while (true)
 		{
 			sortRectHigher(areas);
 			rect_num = 0;
 			minimum = 1000000;
-			for(i in 0...areas.length){
+			for (i in 0...areas.length)
+			{
 				var area:Rectangle = areas[i];
-				for(j in 0 ...subTextures.length){
-				var sub:SubTexture = subTextures[j];
-				var value:Int = calc_gap(sub.width,sub.height,area);
-				if(value > 0 && value < minimum){
-				rect_num = i;
-				sub_num = j;
-				minimum = value;
-				bool = false;
-				}
-				value = calc_gap(sub.height,sub.height,area);
-				if(value > 0 && value < minimum){
-				rect_num = i;
-				sub_num = j;
-				minimum = value;
-				bool = true;
-				}
-				
+				for (j in 0 ...subTextures.length)
+				{
+					var sub:SubTexture = subTextures[j];
+					var value:Int = calc_gap(sub.width, sub.height, area);
+					if (value > 0 && value < minimum)
+					{
+						rect_num = i;
+						sub_num = j;
+						minimum = value;
+						bool = false;
+					}
+					value = calc_gap(sub.height, sub.height, area);
+					if (value > 0 && value < minimum)
+					{
+						rect_num = i;
+						sub_num = j;
+						minimum = value;
+						bool = true;
+					}
 				}
 			}
-			
-			if(minimum == 100000)size *= 2;
-			else{
-			var area = areas[rect_num];
-			var subtexture = subTextures[sub_num];
-			if(bool) var region:Region = {x:area.x, y:area.y, width:subtexture.height, height:subtexture.width, rotated:bool};
-			else var region:Region ={x:area.x, y:area.y, width:subtexture.width, height:subtexture.height, rotated:bool};
+
+			if (minimum == 100000)size *= 2; else
+			{
+				var area:Rectangle = areas[rect_num];
+				var area_x:Int = Math.floor(area.x);
+				var area_y:Int = Math.floor(area.y);
+				var subtexture = subTextures[sub_num];
+				var region:Region;
+				region = {x:area_x, y:area_y, width:subtexture.width, height:subtexture.height, rotated:bool};
+				regions.push(region);
+				subTextures.remove(subtexture);
+				make_new_rectangle(areas, area, size);
 			}
-			if(check_subTextures_empty(subTextures)) return regions;
+			if (check_subTextures_empty(subTextures)) return regions;
 		}
 		//return regions;
 	}
