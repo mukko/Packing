@@ -26,7 +26,7 @@ width:Int, height:Int,
 class TexturePacking
 {
 	//12個以上だとタイムアウトエラー発生しやすい
-	static inline var TEXTURE_NUMBER = 10;
+	static inline var TEXTURE_NUMBER = 3;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
 	static inline var DEFAULT_AREA_SIZE = 1000000;
@@ -262,7 +262,11 @@ class TexturePacking
 
 	private static function calc_gap(width:Int, height:Int, field:Rectangle):Int
 	{
-		return Math.floor((field.width * field.height) - (width * height));
+		var height_gap:Int = Math.floor(field.height) - height;
+		var width_gap:Int = Math.floor(field.width) - width;
+		if(height_gap < 0 && width_gap < 0)	return -1;
+		else return height_gap * width_gap;
+		
 	}
 	
 	/**
@@ -280,7 +284,7 @@ class TexturePacking
 		var rect2:Rectangle;
 		if(region.rotated){
 		rect1 = new Rectangle(region.x, region.y, size, size - bottom);
-		rect2 = new Rectangle(right, bottom, size - bottom, region.x);
+		rect2 = new Rectangle(right, bottom, size - bottom, region.width);
 		}
 		else{
 		rect1 = new Rectangle(region.x, bottom, size, size - bottom);
@@ -319,18 +323,19 @@ class TexturePacking
 		var rect_num:Int = 0;
 		var sub_num:Int = 0;
 		var bool:Bool = false;
-		var minimum:Int;
+		var minimum;
 		while (true)
 		{
 			sortRectHigher(areas);
 			minimum = DEFAULT_AREA_SIZE;
+			trace(areas);
 			for (i in 0...areas.length)
 			{
 				var area:Rectangle = areas[i];
 				for (j in 0 ...subTextures.length)
 				{
 					var sub:SubTexture = subTextures[j];
-					var value:Int = calc_gap(sub.width, sub.height, area);
+					var value = calc_gap(sub.width, sub.height, area);
 					if (value > 0 && value < minimum)
 					{
 						rect_num = i;
@@ -338,7 +343,7 @@ class TexturePacking
 						minimum = value;
 						bool = false;
 					}
-					value = calc_gap(sub.height, sub.height, area);
+					value = calc_gap(sub.height, sub.width, area);
 					if (value > 0 && value < minimum)
 					{
 						rect_num = i;
@@ -348,9 +353,8 @@ class TexturePacking
 					}
 				}
 			}
-			var w:Int = Math.floor(areas[rect_num].x + subTextures[sub_num].width);
-			var h:Int = Math.floor(areas[rect_num].y + subTextures[sub_num].height);
-			if (minimum == DEFAULT_AREA_SIZE && w <= size && h <= size)
+			trace(minimum);
+			if (minimum == DEFAULT_AREA_SIZE)
 			{
 				change_rect_size(areas, size);
 				size = value_double(size);
