@@ -1,7 +1,7 @@
 package ;
 
+import flash.geom.Rectangle;
 import UInt;
-import TexturePacking.Region;
 import Math;
 import flash.geom.Point;
 import flash.display.Shape;
@@ -25,7 +25,7 @@ width:Int, height:Int,
 class TexturePacking
 {
 	//12個以上だとタイムアウトエラー発生しやすい
-	static inline var TEXTURE_NUMBER = 12;
+	static inline var TEXTURE_NUMBER = 5;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
 
@@ -40,29 +40,30 @@ class TexturePacking
 		var regions:Array<Region> = [];
 		//高さ順にソート
 		sortHeightHigher(subTextures);
+		trace(subTextures);
 		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
-		var first:SubTexture = subTextures[0];
+		//var first:SubTexture = subTextures[0];
 		//fieldの値をそれぞれチェック。納まる大きさに変更する
-		fieldWidth = field_check(fieldWidth, first.width);
-		fieldHeight = field_check(fieldHeight, first.height);
+		//fieldWidth = field_check(fieldWidth, first.width);
+		//fieldHeight = field_check(fieldHeight, first.height);
 		//regionsに最も大きい要素を入れる
-		var r:Region = {x:0, y:0, width:first.width, height:first.height, rotated:false};
-		regions.push(r);
+		//var r:Region = {x:0, y:0, width:first.width, height:first.height, rotated:false};
+		//regions.push(r);
 		//pointsに座標を入れる
-		var points:Array<Point> = [new Point(0, first.height + 1), new Point(first.width + 1, 0)];
+		//var points:Array<Point> = [new Point(0, first.height + 1), new Point(first.width + 1, 0)];
 		//レベル配列をつくる
-		var level_height:Array<Int> = [fieldHeight, first.height + 1];
+		//var level_height:Array<Int> = [fieldHeight, first.height + 1];
 		//幅のレベルはひとつだけだが、都合上配列になった
-		var level_width:Array<Int> = [fieldWidth];
+		//var level_width:Array<Int> = [fieldWidth];
 
 		//使い終わったsubTexturesは削除する
-		subTextures.remove(first);
-		tomo_algorithm(subTextures, regions, points, level_width, level_height);
+		//subTextures.remove(first);
+		//tomo_algorithm(subTextures, regions, points, level_width, level_height);
 		drawRegions(regions);
-		drawLine(fieldWidth, fieldHeight);
-		trace("w:"+fieldWidth+",h:"+fieldHeight);
+		//drawLine(fieldWidth, fieldHeight);
+		//trace("w:"+fieldWidth+",h:"+fieldHeight);
 	}
-
+	
 	/**
 	 * 任意の数のランダムな大きさのサブテクスチャを生成する
 	 * @param	numSubTextures 生成するサブテクスチャの数
@@ -99,6 +100,15 @@ class TexturePacking
 	private static function totalTextureWidth(subTextures:Array<SubTexture>):Int
 	{
 		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int, b:Int)return a + b, 0);
+	}
+	
+	/**
+*長方形をソート昇順にソート
+* @param	rectangles 長方形の集合
+**/
+	private static function sortRectHigher(rectangles:Array<Rectangle>):Void
+	{
+		rectangles.sort(function(a:Rectangle, b:Rectangle) return Math.floor(b.height - a.height));
 	}
 
 	/**
@@ -203,12 +213,17 @@ class TexturePacking
 		}
 		return nearest_number;
 	}
-
-	private static function check_array_empty(array:Array<SubTexture>):Bool
+	/**
+*配列が空かどうかをチェック
+* @param	array サブテクスチャ配列
+* @return	あればfalse,無ければtrue
+**/
+	private static function check_subTextures_empty(array:Array<SubTexture>):Bool
 	{
-		if (array.length == 0) return false;
-		return true;
+		if (array.length == 0) return true;
+		return false;
 	}
+	
 	/**
 	*絶対値を返すメソッド
 	* @param	値
@@ -216,11 +231,13 @@ class TexturePacking
 **/
 	private static function getAbsoluteValue(num:Int):Int
 	{
-		return  num < 0 ? -num : num;
+		return num < 0 ? -num : num;
 	}
-	private static function push_pop_process(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, point:Point,sub:SubTexture):Void
+
+	private static function push_pop_process(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>, point:Point,
+											 sub:SubTexture):Void
 	{
-		var point_x :UInt = Math.floor(point.x);
+		var point_x:UInt = Math.floor(point.x);
 		var point_y:UInt = Math.floor(point.y);
 		var sub_width:UInt = sub.width;
 		var sub_height:UInt = sub.height;
@@ -233,7 +250,7 @@ class TexturePacking
 		points.push(p_push2);
 		subTextures.remove(sub);
 	}
-	
+
 	/**
 	*実装したアルゴリズム
 **/
@@ -242,7 +259,7 @@ class TexturePacking
 										   level_width:Array<Int>, level_height:Array<Int>):Void
 	{
 		var points = points.copy();
-		while (check_array_empty(subTextures) == true)
+		while (check_subTextures_empty(subTextures) == true)
 		{
 			//入るとき用変数たち
 			var level_num:UInt = 0;
@@ -300,11 +317,69 @@ class TexturePacking
 			} else
 			{
 				level_height.push(Math.floor(min_point.y + min_sub.height));
-				push_pop_process(subTextures,regions,points,min_point,min_sub);
+				push_pop_process(subTextures, regions, points, min_point, min_sub);
 			}
 		}
 	}
-
+	
+	/**
+	* fieldとの面積の差を返す
+	* @param	width 幅
+	* @param	height 高さ
+	* @param	field フィールドとなっている長方形
+**/
+	private static function calc_gap(width:Int, height:Int, field:Rectangle):Int
+	{
+		return Math.floor((field.width * field.height) - (width * height)); 
+	}
+	
+	/**
+	*再スタートしたアルゴリズム
+**/
+	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>,size:Int):Array<Region>
+	{
+		var rect_num:Int;
+		var sub_num:Int;
+		var bool:Bool;
+		var minimum:Int;
+		while(true)
+		{
+			sortRectHigher(areas);
+			rect_num = 0;
+			minimum = 1000000;
+			for(i in 0...areas.length){
+				var area:Rectangle = areas[i];
+				for(j in 0 ...subTextures.length){
+				var sub:SubTexture = subTextures[j];
+				var value:Int = calc_gap(sub.width,sub.height,area);
+				if(value > 0 && value < minimum){
+				rect_num = i;
+				sub_num = j;
+				minimum = value;
+				bool = false;
+				}
+				value = calc_gap(sub.height,sub.height,area);
+				if(value > 0 && value < minimum){
+				rect_num = i;
+				sub_num = j;
+				minimum = value;
+				bool = true;
+				}
+				
+				}
+			}
+			
+			if(minimum == 100000)size *= 2;
+			else{
+			var area = areas[rect_num];
+			var subtexture = subTextures[sub_num];
+			if(bool) var region:Region = {x:area.x, y:area.y, width:subtexture.height, height:subtexture.width, rotated:bool};
+			else var region:Region ={x:area.x, y:area.y, width:subtexture.width, height:subtexture.height, rotated:bool};
+			}
+			if(check_subTextures_empty(subTextures)) return regions;
+		}
+		//return regions;
+	}
 
 	/**
 	 * （確認用）領域をステージ（flash.display.Stage）に描画する
