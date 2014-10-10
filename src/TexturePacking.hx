@@ -25,13 +25,14 @@ width:Int, height:Int,
 class TexturePacking
 {
 	//12個以上だとタイムアウトエラー発生しやすい
-	static inline var TEXTURE_NUMBER = 5;
+	static inline var TEXTURE_NUMBER = 2;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
 
 	//書き込み、読み出しはどこからでも可能
 	static public var fieldWidth(default, default) = 32;
 	static public var fieldHeight(default, default) = 32;
+	static public var size(default, default) = 2;
 
 	public function new()
 	{
@@ -41,27 +42,15 @@ class TexturePacking
 		//高さ順にソート
 		sortHeightHigher(subTextures);
 		trace(subTextures);
-		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
-		//var first:SubTexture = subTextures[0];
-		//fieldの値をそれぞれチェック。納まる大きさに変更する
-		//fieldWidth = field_check(fieldWidth, first.width);
-		//fieldHeight = field_check(fieldHeight, first.height);
-		//regionsに最も大きい要素を入れる
-		//var r:Region = {x:0, y:0, width:first.width, height:first.height, rotated:false};
-		//regions.push(r);
-		//pointsに座標を入れる
-		//var points:Array<Point> = [new Point(0, first.height + 1), new Point(first.width + 1, 0)];
-		//レベル配列をつくる
-		//var level_height:Array<Int> = [fieldHeight, first.height + 1];
-		//幅のレベルはひとつだけだが、都合上配列になった
-		//var level_width:Array<Int> = [fieldWidth];
-
-		//使い終わったsubTexturesは削除する
-		//subTextures.remove(first);
-		//tomo_algorithm(subTextures, regions, points, level_width, level_height);
+		var size = 2;
+		var areas:Array<Rectangle> = [new Rectangle(Math.floor(0), Math.floor(0), Math.floor(2), Math.floor(2))];
+		regions = test_algorithm(subTextures, regions, areas, size);
+		trace(regions);
+		trace(size);
+		
+		drawLine(size, size);
 		drawRegions(regions);
-		//drawLine(fieldWidth, fieldHeight);
-		//trace("w:"+fieldWidth+",h:"+fieldHeight);
+
 	}
 
 	/**
@@ -353,6 +342,22 @@ class TexturePacking
 		areas.push(rect2);
 		areas.remove(rect);
 	}
+	/**
+	*areasの上限をsizeの変更に従い変更する
+	* @param	areas	長方形領域の集合
+	* @param	size	今の大きさ
+**/
+
+	private static function change_rect_size(areas:Array<Rectangle>, size:Int):Void
+	{
+		for (area in areas)
+		{
+			var value_width:Int = Math.floor(area.x + area.width);
+			var value_height:Int = Math.floor(area.y + area.height);
+			if (value_width == size) area.width = size * 2 - area.x;
+			if (value_height == size) area.height = size * 2 - area.y;
+		}
+	}
 
 	/**
 	*再スタートしたアルゴリズム
@@ -368,6 +373,7 @@ class TexturePacking
 		while (true)
 		{
 			sortRectHigher(areas);
+			trace(size);
 			rect_num = 0;
 			minimum = 1000000;
 			for (i in 0...areas.length)
@@ -394,8 +400,13 @@ class TexturePacking
 					}
 				}
 			}
-
-			if (minimum == 100000)size *= 2; else
+			if (minimum == 1000000)
+			{
+				change_rect_size(areas, size);
+				trace(areas);
+				//ここでsizeの変更をすると0になってしまう
+				size *= 2;
+			} else
 			{
 				var area:Rectangle = areas[rect_num];
 				var area_x:Int = Math.floor(area.x);
@@ -406,10 +417,14 @@ class TexturePacking
 				regions.push(region);
 				subTextures.remove(subtexture);
 				make_new_rectangle(areas, area, size);
+				trace(subTextures);
 			}
-			if (check_subTextures_empty(subTextures)) return regions;
+			if (check_subTextures_empty(subTextures))
+			{
+				trace("success!!!!");
+				return regions;
+			}
 		}
-		//return regions;
 	}
 
 	/**
