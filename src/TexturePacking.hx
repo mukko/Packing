@@ -1,5 +1,6 @@
 package ;
 
+import TexturePacking.SubTexture;
 import flash.geom.Rectangle;
 import UInt;
 import Math;
@@ -49,14 +50,15 @@ class TexturePacking
 		var region:Region = {x:0,y:0,width:s0.width,height:s0.height,rotated:false};
 		regions.push(region);
 		subTextures.remove(s0);
-		make_new_rectangle(areas, areas[0], size);
+		make_new_rectangle(areas, region, size);
 		areas.remove(areas[0]);
-		
+		trace(areas);
 		regions = test_algorithm(subTextures, regions, areas);
 		trace(regions);
 		trace(size);
 		
 		drawLine(size, size);
+
 		drawRegions(regions);
 
 	}
@@ -266,19 +268,26 @@ class TexturePacking
 	/**
 	*新たな長方形領域を算出,そして突っ込む
 	* @param	areas	長方形領域の集合
-	* @param	rect	使った長方形
+	* @param	region	作ったregion
 	* @oaram	size	大きさの限界値
 **/
 
-	private static function make_new_rectangle(areas:Array<Rectangle>, rect:Rectangle, size:Int):Void
+	private static function make_new_rectangle(areas:Array<Rectangle>, region:Region, size:Int):Void
 	{
-		var r_bottom = rect.y + rect.height;
-		var r_right = rect.x + rect.width;
-		var rect1:Rectangle = new Rectangle(rect.x, r_bottom, size, size - r_bottom);
-		var rect2:Rectangle = new Rectangle(r_right, rect.y, size - r_right, rect.height);
+		var bottom = region.y + region.height;
+		var right = region.x + region.width;
+		var rect1:Rectangle;
+		var rect2:Rectangle;
+		if(region.rotated){
+		rect1 = new Rectangle(region.x, region.y, size, size - bottom);
+		rect2 = new Rectangle(right, bottom, size - bottom, region.x);
+		}
+		else{
+		rect1 = new Rectangle(region.x, bottom, size, size - bottom);
+		rect2 = new Rectangle(right, region.y, size - right, region.height);
+		}
 		areas.push(rect1);
 		areas.push(rect2);
-		areas.remove(rect);
 	}
 	/**
 	*areasの上限をsizeの変更に従い変更する
@@ -307,15 +316,13 @@ class TexturePacking
 	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>
 										   ):Array<Region>
 	{
-		var rect_num:Int;
+		var rect_num:Int = 0;
 		var sub_num:Int = 0;
 		var bool:Bool = false;
 		var minimum:Int;
 		while (true)
 		{
 			sortRectHigher(areas);
-			trace(areas);
-			rect_num = 0;
 			minimum = DEFAULT_AREA_SIZE;
 			for (i in 0...areas.length)
 			{
@@ -341,7 +348,9 @@ class TexturePacking
 					}
 				}
 			}
-			if (minimum == DEFAULT_AREA_SIZE)
+			var w:Int = Math.floor(areas[rect_num].x + subTextures[sub_num].width);
+			var h:Int = Math.floor(areas[rect_num].y + subTextures[sub_num].height);
+			if (minimum == DEFAULT_AREA_SIZE && w <= size && h <= size)
 			{
 				change_rect_size(areas, size);
 				size = value_double(size);
@@ -355,9 +364,8 @@ class TexturePacking
 				region = {x:area_x, y:area_y, width:subtexture.width, height:subtexture.height, rotated:bool};
 				regions.push(region);
 				subTextures.remove(subtexture);
-				make_new_rectangle(areas, area, size);
+				make_new_rectangle(areas, region, size);
 				areas.remove(area);
-				trace(areas);
 			}
 			if (check_subTextures_empty(subTextures))
 			{
