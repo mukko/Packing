@@ -1,5 +1,6 @@
 package ;
 
+import TexturePacking.SubTexture;
 import flash.geom.Rectangle;
 import UInt;
 import Math;
@@ -25,13 +26,14 @@ width:Int, height:Int,
 class TexturePacking
 {
 	//12個以上だとタイムアウトエラー発生しやすい
-	static inline var TEXTURE_NUMBER = 5;
-	static inline var MAX_WIDTH = 100;
-	static inline var MAX_HEIGHT = 100;
-
+	static inline var TEXTURE_NUMBER = 4;
+	static inline var MAX_WIDTH = 200;
+	static inline var MAX_HEIGHT = 200;
+	static inline var DEFAULT_AREA_SIZE = 1000000;
 	//書き込み、読み出しはどこからでも可能
 	static public var fieldWidth(default, default) = 32;
 	static public var fieldHeight(default, default) = 32;
+	static public var size(default, default) = 2;
 
 	public function new()
 	{
@@ -41,29 +43,32 @@ class TexturePacking
 		//高さ順にソート
 		sortHeightHigher(subTextures);
 		trace(subTextures);
-		//アルゴリズムをまわすために、最も大きい最初の要素を配置する
-		//var first:SubTexture = subTextures[0];
-		//fieldの値をそれぞれチェック。納まる大きさに変更する
-		//fieldWidth = field_check(fieldWidth, first.width);
-		//fieldHeight = field_check(fieldHeight, first.height);
-		//regionsに最も大きい要素を入れる
-		//var r:Region = {x:0, y:0, width:first.width, height:first.height, rotated:false};
-		//regions.push(r);
-		//pointsに座標を入れる
-		//var points:Array<Point> = [new Point(0, first.height + 1), new Point(first.width + 1, 0)];
-		//レベル配列をつくる
-		//var level_height:Array<Int> = [fieldHeight, first.height + 1];
-		//幅のレベルはひとつだけだが、都合上配列になった
-		//var level_width:Array<Int> = [fieldWidth];
+		//var size = 2;
+		var s0 = subTextures[0];
+		var value:Int = subTextures[0].height;
+		if(subTextures[0].height < subTextures[0].width) value = subTextures[0].width;
+		size = field_check(size,value);
+		trace(size);
+		var areas:Array<Rectangle> = [new Rectangle(Math.floor(0), Math.floor(0), size, size)];
+		var region:Region = {x:0,y:0,width:s0.width,height:s0.height,rotated:false};
+		regions.push(region);
+		subTextures.remove(s0);
+		var sizes:Array<Int> = make_power_of_two_array(size);
+		make_new_rectangle(areas, areas[0], region);
+		areas.remove(areas[0]);
+		//trace(areas);
+		//regions = test_algorithm(subTextures, regions, areas, sizes);
+		regions = algorrithm(subTextures, regions, areas, sizes);
+		//trace(regions);
+		trace(regions);
+		trace(size);
+		
+		drawLine(size, size);
 
-		//使い終わったsubTexturesは削除する
-		//subTextures.remove(first);
-		//tomo_algorithm(subTextures, regions, points, level_width, level_height);
 		drawRegions(regions);
-		//drawLine(fieldWidth, fieldHeight);
-		//trace("w:"+fieldWidth+",h:"+fieldHeight);
+
 	}
-	
+
 	/**
 	 * 任意の数のランダムな大きさのサブテクスチャを生成する
 	 * @param	numSubTextures 生成するサブテクスチャの数
@@ -101,11 +106,12 @@ class TexturePacking
 	{
 		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int, b:Int)return a + b, 0);
 	}
-	
+
 	/**
 *長方形をソート昇順にソート
 * @param	rectangles 長方形の集合
 **/
+
 	private static function sortRectHigher(rectangles:Array<Rectangle>):Void
 	{
 		rectangles.sort(function(a:Rectangle, b:Rectangle) return Math.floor(b.height - a.height));
@@ -119,6 +125,11 @@ class TexturePacking
 	private static function sortHeightHigher(subTextures:Array<SubTexture>):Void
 	{
 		subTextures.sort(function(a:SubTexture, b:SubTexture) return b.height - a.height);
+	}
+
+	private static function sort_areaHeightHigher(subTextures:Array<Rectangle>):Void
+	{
+		subTextures.sort(function(a:Rectangle, b:Rectangle) return Math.floor(b.height - a.height));
 	}
 
 	/**
@@ -218,17 +229,19 @@ class TexturePacking
 * @param	array サブテクスチャ配列
 * @return	あればfalse,無ければtrue
 **/
+
 	private static function check_subTextures_empty(array:Array<SubTexture>):Bool
 	{
 		if (array.length == 0) return true;
 		return false;
 	}
-	
+
 	/**
 	*絶対値を返すメソッド
 	* @param	値
 	* @rerturn	|値|
 **/
+
 	private static function getAbsoluteValue(num:Int):Int
 	{
 		return num < 0 ? -num : num;
@@ -252,135 +265,225 @@ class TexturePacking
 	}
 
 	/**
-	*実装したアルゴリズム
-**/
-
-	private static function tomo_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, points:Array<Point>,
-										   level_width:Array<Int>, level_height:Array<Int>):Void
-	{
-		var points = points.copy();
-		while (check_subTextures_empty(subTextures) == true)
-		{
-			//入るとき用変数たち
-			var level_num:UInt = 0;
-			var minimum:Int = 1000;
-			var min_point:Point = new Point(0, 0);
-			var min_sub:SubTexture = {width:0, height:0};
-			//入らないとき用変数たち
-			var out_number:UInt = 0;
-			var out_minimum:UInt = 100000;
-			var out_point:Point = new Point(0, 0);
-			var out_sub:SubTexture = {width:0, height:0};
-
-			for (i in 0...points.length)
-			{
-				var point:Point = points[i];
-				var px:UInt = Math.floor(point.x);
-				var py:UInt = Math.floor(point.y);
-				//もっとも近いレベルを保持
-				var level_h:Int = search_nearest_level(level_height, py);
-				var level_w:Int = search_nearest_level(level_width, px);
-				var dw:Int;
-				var dh:Int;
-				for (j in 0...subTextures.length)
-				{
-					var st:SubTexture = subTextures[j];
-					dw = level_w - px - st.width;
-					dh = level_h - py - st.height;
-					if (dw > 0 && dh > 0 && dh < minimum)
-					{
-						minimum = dh;
-						min_point = point;
-						min_sub = st;
-					} else if ((dw < 0 && dh > 0) || (dw > 0 && dh < 0) || (dw < 0 && dh < 0))
-					{
-						var dimention:UInt = getAbsoluteValue(dw * dh);
-						if (dimention < out_minimum)
-						{
-							out_minimum = dimention;
-							out_point = point;
-							out_sub = st;
-						}
-					}
-				}
-			}
-			if (minimum == 1000)
-			{
-				var check_w:Int = Math.floor(out_point.x + out_sub.width);
-				var check_h:Int = Math.floor(out_point.y + out_sub.height);
-				fieldWidth = field_check(fieldWidth, check_w);
-				fieldHeight = field_check(fieldHeight, check_h);
-				level_width.pop();
-				level_width.push(fieldWidth);
-				level_height.remove(level_height[0]);
-				level_height.insert(0, fieldHeight);
-			} else
-			{
-				level_height.push(Math.floor(min_point.y + min_sub.height));
-				push_pop_process(subTextures, regions, points, min_point, min_sub);
-			}
-		}
-	}
-	
-	/**
 	* fieldとの面積の差を返す
 	* @param	width 幅
 	* @param	height 高さ
 	* @param	field フィールドとなっている長方形
 **/
+
 	private static function calc_gap(width:Int, height:Int, field:Rectangle):Int
 	{
-		return Math.floor((field.width * field.height) - (width * height)); 
+		var height_gap:Int = Math.floor(field.height) - height;
+		var width_gap:Int = Math.floor(field.width) - width;
+		if(height_gap < 0 && width_gap < 0)	return -1;
+		else return height_gap * width_gap;
+		
+	}
+	
+	/**
+	*新たな長方形領域を算出,そして突っ込む
+	* @param	areas	長方形領域の集合
+	* @param	region	作ったregion
+	* @oaram	size	大きさの限界値
+**/
+
+	private static function make_new_rectangle(areas:Array<Rectangle>, area:Rectangle, region:Region):Void
+	{
+		var bottom = region.y + region.height;
+		var right = region.x + region.width;
+		var rect1:Rectangle;
+		var rect2:Rectangle;
+		if(region.rotated){
+		rect1 = new Rectangle(region.x, region.y, Math.floor(area.width) - region.x, Math.floor(area.height)-region.height);
+		rect2 = new Rectangle(bottom, right, Math.floor(area.width)-right, region.width);
+		}
+		else{
+		rect1 = new Rectangle(region.x, bottom, Math.floor(area.width) - region.x, Math.floor(area.height)-region.height);
+		rect2 = new Rectangle(right, region.y, Math.floor(area.width) - region.width, region.height);
+		}
+		areas.push(rect1);
+		areas.push(rect2);
+	}
+	/**
+	*areasの上限をsizeの変更に従い変更する
+	* @param	areas	長方形領域の集合
+	* @param	size	今の大きさ
+**/
+
+	private static function change_rect_size(areas:Array<Rectangle>, size:Int):Void
+	{
+		for (area in areas)
+		{
+			var value_width:Int = Math.floor(area.x + area.width);
+			var value_height:Int = Math.floor(area.y + area.height);
+			if (value_width == size) area.width += size;
+			if (value_height == size) area.height += size;
+		}
+	}
+	/**
+	*値を二倍して返す
+	* @param	value	二倍したい値
+	* @return	valueを二倍した値
+**/
+	private static function value_double(value:Int):Int
+	{
+		return value *= 2;
+	}
+	/**
+	*2のn乗の配列を返す
+	* @param	min_size	配列[0]の要素になり、最も小さな値となる
+	* @return	2のn乗の値が入った配列
+**/
+	private static function make_power_of_two_array(min_size:Int):Array<Int>
+	{
+	 var size_array:Array<Int> = [min_size];
+	 var size:Int = min_size;
+	 while(true)
+	 {
+	 	size *= 2;
+	 	if(size <=2048) size_array.push(size);
+	 	else return size_array;
+	 }
+	}
+	 /**
+	 * 再々スタートもう負けない
+**/
+	private static function algorrithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>, sizes:Array<Int>
+										   ):Array<Region>
+	{
+	var area_num:Int = 0;
+	var sub_num:Int = 0;
+	var bool:Bool = false;
+	var minimum:Int;
+	var region_array:Array<Region> = [];
+	var area_array:Array<Rectangle> = [];
+	var sub_array:Array<SubTexture> = [];
+	
+	for(s_num in 0...sizes.length)
+	{
+		size = sizes[s_num];
+		region_array = regions.copy();
+		area_array = areas.copy();
+		sub_array = subTextures.copy();
+		
+		sort_areaHeightHigher(area_array);
+		minimum = DEFAULT_AREA_SIZE;
+		for(a_num in 0...area_array.length)
+		{
+		var area:Rectangle = area_array[a_num];
+		for(s_num in 0...sub_array.length)
+		{
+		var sub:SubTexture = sub_array[s_num];
+		var value:Int = calc_gap(sub.width,sub.height,area);
+		if(value > 0 && value < minimum){
+		area_num = a_num;
+		sub_num = s_num;
+		minimum = value;
+		bool = false;
+		}
+		value = calc_gap(sub.height,sub.width,area);
+		if(value > 0 && value < minimum){
+		area_num = a_num;
+		sub_num = s_num;
+		minimum = value;
+		bool = true;
+		}
+		}
+		}
+		if(minimum == DEFAULT_AREA_SIZE){
+		}else{
+		var area:Rectangle = area_array[area_num];
+		var sub:SubTexture = sub_array[sub_num];
+		var region:Region = {x:Math.floor(area.x), y:Math.floor(area.y), width:sub.width, height:sub.height, rotated:bool};
+		region_array.push(region);
+		sub_array.remove(sub);
+		area_array.remove(area);
+		make_new_rectangle(area_array,area,region);
+		}
+		if(check_subTextures_empty(sub_array)) break;
+		}
+		trace("success!");
+		return region_array;
 	}
 	
 	/**
 	*再スタートしたアルゴリズム
 **/
-	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>,size:Int):Array<Region>
+/*
+	private static function test_algorithm(subTextures:Array<SubTexture>, regions:Array<Region>, areas:Array<Rectangle>, sizes:Array<Int>
+										   ):Array<Region>
 	{
-		var rect_num:Int;
-		var sub_num:Int;
-		var bool:Bool;
-		var minimum:Int;
-		while(true)
+		var rect_num:Int = 0;
+		var sub_num:Int = 0;
+		var bool:Bool = false;
+		var minimum;
+		var region_array:Array<Region> = [];
+		var area_array:Array<Rectangle> = [];
+		for(s in sizes)
 		{
-			sortRectHigher(areas);
-			rect_num = 0;
-			minimum = 1000000;
-			for(i in 0...areas.length){
-				var area:Rectangle = areas[i];
-				for(j in 0 ...subTextures.length){
-				var sub:SubTexture = subTextures[j];
-				var value:Int = calc_gap(sub.width,sub.height,area);
-				if(value > 0 && value < minimum){
-				rect_num = i;
-				sub_num = j;
-				minimum = value;
-				bool = false;
-				}
-				value = calc_gap(sub.height,sub.height,area);
-				if(value > 0 && value < minimum){
-				rect_num = i;
-				sub_num = j;
-				minimum = value;
-				bool = true;
-				}
-				
+			size = s;
+			var sub_array:Array<SubTexture> = subTextures.copy();
+			region_array = regions.copy();
+			area_array = areas.copy();
+			for(num in 0...sub_array.length)
+			{
+			sortRectHigher(area_array);
+			trace(area_array);
+			minimum = DEFAULT_AREA_SIZE;
+			for (i in 0...area_array.length)
+			{
+				var area:Rectangle = area_array[i];
+				for (j in 0 ...sub_array.length)
+				{
+					var sub:SubTexture = sub_array[j];
+					var right = area.x + sub.width;
+					var bottom = area.y + sub.height;
+					var check_w = size - right;
+					var check_h = size - bottom;
+					var value = calc_gap(sub.width, sub.height, area);
+					if (value > 0 && value < minimum && check_w > 0 && check_h > 0)
+					{
+						rect_num = i;
+						sub_num = j;
+						minimum = value;
+						bool = false;
+					}
+					right = area.x + sub.height;
+					bottom = area.y + sub.width;
+					check_w = size - right;
+					check_h = size - bottom;
+					value = calc_gap(sub.height, sub.width, area);
+					if (value > 0 && value < minimum && check_w > 0 && check_h > 0)
+					{
+						rect_num = i;
+						sub_num = j;
+						minimum = value;
+						bool = true;
+					}
 				}
 			}
-			
-			if(minimum == 100000)size *= 2;
-			else{
-			var area = areas[rect_num];
-			var subtexture = subTextures[sub_num];
-			if(bool) var region:Region = {x:area.x, y:area.y, width:subtexture.height, height:subtexture.width, rotated:bool};
-			else var region:Region ={x:area.x, y:area.y, width:subtexture.width, height:subtexture.height, rotated:bool};
+			if(minimum != DEFAULT_AREA_SIZE){
+				var area:Rectangle = area_array[rect_num];
+				var area_x:Int = Math.floor(area.x);
+				var area_y:Int = Math.floor(area.y);
+				var subtexture = sub_array[sub_num];
+				var region:Region;
+				region = {x:area_x, y:area_y, width:subtexture.width, height:subtexture.height, rotated:bool};
+				region_array.push(region);
+				sub_array.remove(subtexture);
+				make_new_rectangle(areas, region, size);
+				area_array.remove(area);
 			}
-			if(check_subTextures_empty(subTextures)) return regions;
 		}
-		//return regions;
+		if (check_subTextures_empty(sub_array))
+			{
+				trace("success!!!!");
+				break;
+			}
 	}
-
+	return region_array;
+	}
+*/
 	/**
 	 * （確認用）領域をステージ（flash.display.Stage）に描画する
 	 * @param	regions 描画する領域の集合
