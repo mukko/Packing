@@ -27,8 +27,8 @@ class TexturePacking
 {
 	//12個以上だとタイムアウトエラー発生しやすい
 	static inline var TEXTURE_NUMBER = 4;
-	static inline var MAX_WIDTH = 200;
-	static inline var MAX_HEIGHT = 200;
+	static inline var MAX_WIDTH = 100;
+	static inline var MAX_HEIGHT = 100;
 	static inline var DEFAULT_AREA_SIZE = 1000000;
 	//書き込み、読み出しはどこからでも可能
 	static public var fieldWidth(default, default) = 32;
@@ -53,6 +53,7 @@ class TexturePacking
 		var region:Region = {x:0,y:0,width:s0.width,height:s0.height,rotated:false};
 		regions.push(region);
 		subTextures.remove(s0);
+		trace(subTextures);
 		var sizes:Array<Int> = make_power_of_two_array(size);
 		make_new_rectangle(areas, areas[0], region);
 		areas.remove(areas[0]);
@@ -275,7 +276,7 @@ class TexturePacking
 	{
 		var height_gap:Int = Math.floor(field.height) - height;
 		var width_gap:Int = Math.floor(field.width) - width;
-		if(height_gap < 0 && width_gap < 0)	return -1;
+		if(height_gap < 0 || width_gap < 0)	return -1;
 		else return height_gap * width_gap;
 		
 	}
@@ -293,6 +294,7 @@ class TexturePacking
 		var right = region.x + region.width;
 		var rect1:Rectangle;
 		var rect2:Rectangle;
+		trace(areas);
 		if(region.rotated){
 		rect1 = new Rectangle(region.x, region.y, Math.floor(area.width) - region.x, Math.floor(area.height)-region.height);
 		rect2 = new Rectangle(bottom, right, Math.floor(area.width)-right, region.width);
@@ -303,6 +305,7 @@ class TexturePacking
 		}
 		areas.push(rect1);
 		areas.push(rect2);
+		trace(areas);
 	}
 	/**
 	*areasの上限をsizeの変更に従い変更する
@@ -354,7 +357,7 @@ class TexturePacking
 	var area_num:Int = 0;
 	var sub_num:Int = 0;
 	var bool:Bool = false;
-	var minimum:Int;
+	var minimum:Int = DEFAULT_AREA_SIZE;
 	var region_array:Array<Region> = [];
 	var area_array:Array<Rectangle> = [];
 	var sub_array:Array<SubTexture> = [];
@@ -363,18 +366,18 @@ class TexturePacking
 	{
 		size = sizes[s_num];
 		region_array = regions.copy();
-		area_array = areas.copy();
+		area_array = [new Rectangle(0,0,size,size)];
 		sub_array = subTextures.copy();
-		
 		sort_areaHeightHigher(area_array);
-		minimum = DEFAULT_AREA_SIZE;
 		for(a_num in 0...area_array.length)
 		{
+		minimum = DEFAULT_AREA_SIZE;
 		var area:Rectangle = area_array[a_num];
 		for(s_num in 0...sub_array.length)
 		{
 		var sub:SubTexture = sub_array[s_num];
 		var value:Int = calc_gap(sub.width,sub.height,area);
+		trace(value);
 		if(value > 0 && value < minimum){
 		area_num = a_num;
 		sub_num = s_num;
@@ -397,8 +400,10 @@ class TexturePacking
 		var region:Region = {x:Math.floor(area.x), y:Math.floor(area.y), width:sub.width, height:sub.height, rotated:bool};
 		region_array.push(region);
 		sub_array.remove(sub);
-		area_array.remove(area);
+		//area_arrayにpushされていないようだ
 		make_new_rectangle(area_array,area,region);
+		area_array.remove(area);
+		trace(area_array);
 		}
 		if(check_subTextures_empty(sub_array)) break;
 		}
@@ -471,7 +476,7 @@ class TexturePacking
 				region = {x:area_x, y:area_y, width:subtexture.width, height:subtexture.height, rotated:bool};
 				region_array.push(region);
 				sub_array.remove(subtexture);
-				make_new_rectangle(areas, region, size);
+				make_new_rectangle(areas, area, region);
 				area_array.remove(area);
 			}
 		}
