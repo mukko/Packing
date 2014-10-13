@@ -24,7 +24,7 @@ width:Int, height:Int, rotated:Bool,
 
 class TexturePacking
 {
-	static inline var TEXTURE_NUMBER = 100;
+	static inline var TEXTURE_NUMBER = 30;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
 	static inline var DEFAULT_AREA_SIZE = 100000;
@@ -34,15 +34,17 @@ class TexturePacking
 	public function new()
 	{
 		// 3つのサブテクスチャを作る
+		var begin = Lib.getTimer();
 		var subTextures = createVariousSubTextures(TEXTURE_NUMBER, MAX_WIDTH, MAX_HEIGHT);
 		var regions:Array<Region> = [];
-
+		//FFDH(高さ降順のファーストフィット)アルゴリズム
 		regions = ffdhAlgorithm(subTextures);
-		//trace(regions);
-		trace(size);
+		trace("FIN =>" +size);
 		drawLine(size, size);
 		drawRegions(regions);
-
+		var end = Lib.getTimer();
+		trace(end - begin);
+		trace(totalSurfaceArea(subTextures) / (size * size));
 	}
 
 	/**
@@ -72,16 +74,6 @@ class TexturePacking
 		.fold(function(a:Int, b:Int) return a + b, 0);
 	}
 
-	/**
-	*全サブテクスチャの幅の合計値を算出する
-	* @param	subTextures サブテクスチャの集合
-	* @return	幅の合計
-**/
-
-	private static function totalTextureWidth(subTextures:Array<SubTexture>):Int
-	{
-		return subTextures.map(function(s:SubTexture) return s.width).fold(function(a:Int, b:Int)return a + b, 0);
-	}
 
 	/**
 *alphaSubTexturesを降順にソート
@@ -116,147 +108,6 @@ class TexturePacking
 		subTextures.sort(function(a:SubTexture, b:SubTexture) return b.height - a.height);
 	}
 
-	/**
-	*複数のサブテクスチャを幅の降順にソートする
-	* @param	subTextures サブテクスチャの集合
-**/
-
-	private static function sortWidthHigher(subTextures:Array<SubTexture>):Void
-	{
-		subTextures.sort(function(a:SubTexture, b:SubTexture) return b.width - a.width);
-	}
-
-	/**
-*配列が空かどうかをチェック
-* @param	array サブテクスチャ配列
-* @return	あればfalse,無ければtrue
-**/
-
-	private static function checkSubTexturesEmpty(array:Array<SubTexture>):Bool
-	{
-		if (array.length == 0) return true;
-		return false;
-	}
-
-	/**
-	*絶対値を返すメソッド
-	* @param	値
-	* @rerturn	|値|
-**/
-
-	private static function getAbsoluteValue(num:Int):Int
-	{
-		return num < 0 ? -num : num;
-	}
-
-	/**
-	*値を二倍して返す
-	* @param	value	二倍したい値
-	* @return	valueを二倍した値
-**/
-
-	private static function valueDouble(value:Int):Int
-	{
-		return value *= 2;
-	}
-	/**
-	*2のn乗の配列を返す
-	* @param	min_size	配列[0]の要素になり、最も小さな値となる
-	* @return	2のn乗の値が入った配列
-**/
-
-	private static function makePowerofTwoArray(min_size:Int):Array<Int>
-	{
-		var size_array:Array<Int> = [min_size];
-		var size:Int = min_size;
-		while (true)
-		{
-			size *= 2;
-			if (size <= 2048) size_array.push(size); else return size_array;
-		}
-	}
-
-	/**
-	 * 再々スタートもう負けない
-**/
-	/*
-	private static function algorrithm(subTextures:Array<SubTexture>, regions:Array<Region>):Array<Region>
-	{
-		var area_num:Int = 0;
-		var sub_num:Int = 0;
-		var bool:Bool = false;
-		var minimum:Rectangle;
-		var region_array:Array<Region> = [];
-		var areas:Array<Rectangle> = [];
-		var sizes:Array<Int> = [];
-		var sub_array:Array<SubTexture> = [];
-
-		for (s_num in [128, 256, 512, 1024, 2048])
-		{
-			//幅のサイズが変わったら、初期化をする
-			size = s_num;
-			sub_array = subTextures.copy();
-			region_array = [];
-			areas = [];
-			//サブテクスチャを高さ順にソート
-			sortHeightHigher(sub_array);
-			//はじめにもっとも大きいのを入れる
-			firstStep(sub_array, areas, region_array, s_num);
-			//エリアを降順そーと
-			sortareaHeightHigher(areas);
-			trace(areas);
-			minimum = null;
-			for (su_num in 0...sub_array.length)
-			{
-				var sub:SubTexture = sub_array[su_num];
-
-				for (a_num in 0...areas.length)
-				{
-					var area:Rectangle = areas[a_num];
-					var value:Int = calcGap(sub.width, sub.height, area);
-					//ここから比較。うまくいってない
-					if (area.width > sub.width && area.height > sub.height)
-					{
-						if (minimum == null || area.height < minimum.height)
-						{
-							area_num = a_num;
-							sub_num = su_num;
-							minimum = area;
-							bool = false;
-						}
-					}
-					value = calcGap(sub.height, sub.width, area);
-					if (area.width > sub.height && area.height > sub.width)
-					{
-						if (minimum == null || area.height < minimum.height)
-						{
-							area_num = a_num;
-							sub_num = su_num;
-							minimum = area;
-							bool = true;
-						}
-					}
-				}
-			}
-			if (minimum == null)
-			{
-				break;
-			} else
-			{
-				var area:Rectangle = areas[area_num];
-				var sub:SubTexture = sub_array[sub_num];
-				var region:Region = {x:Math.floor(area.x), y:Math.floor(area.y), width:sub.width, height:sub.height, rotated:bool};
-				region_array.push(region);
-				trace(region);
-				sub_array.remove(sub);
-				makeNewRectangle(areas, area, region);
-				areas.remove(area);
-			}
-			trace()
-			if (checkSubTexturesEmpty(sub_array)) break;
-		}
-		return region_array;
-	}*/
 	/**
 	*alphasubTexruesをsubTexturesからつくる
 	* @param	alphas	AlphaSubTextureの集合
@@ -371,6 +222,11 @@ class TexturePacking
 			Lib.current.stage.addChild(shape);
 		}
 	}
+	/**
+	*外枠の線を描く
+	* @param	width	x座標とも言う
+	* @param	height	y座標とも言う
+**/
 
 	private static function drawLine(width:Int, height:Int)
 	{
