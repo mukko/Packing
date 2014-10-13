@@ -24,7 +24,6 @@ width:Int, height:Int, rotated:Bool,
 
 class TexturePacking
 {
-	//12個以上だとタイムアウトエラー発生しやすい
 	static inline var TEXTURE_NUMBER = 100;
 	static inline var MAX_WIDTH = 100;
 	static inline var MAX_HEIGHT = 100;
@@ -91,21 +90,22 @@ class TexturePacking
 
 	private static function sortalphaSubHigher(alphasubTextures:Array<AlphaSubTexture>):Void
 	{
-		for(alpha in alphasubTextures){
+		for (alpha in alphasubTextures)
+		{
 			var width:Int = alpha.width;
 			var height:Int = alpha.height;
-			if(height < width)	alpha.rotated = true;
+			if (height < width) alpha.rotated = true;
 		}
 		alphasubTextures.sort(function(a:AlphaSubTexture, b:AlphaSubTexture)
-							 {
-								 if(a.rotated && !b.rotated) return b.height - a.width;
-								 else if(b.rotated && !a.rotated) return b.width - a.height;
-								 else if(a.rotated && b.rotated) return b.width - a.width;
-								 else return b.height - a.height;
-							 }
-		);
+							  {
+								  if (a.rotated && !b.rotated) return b.height - a.width; else if (b.rotated && !a.rotated) return b.width -
+																																   a.height; else if (a.rotated &&
+																																					  b.rotated) return b.width -
+																																										a.width; else return b.height -
+																																															 a.height;
+							  });
 	}
-	
+
 	/**
 	*複数のサブテクスチャを高さの降順にソートする
 	* @param	subTextures サブテクスチャの集合
@@ -115,7 +115,7 @@ class TexturePacking
 	{
 		subTextures.sort(function(a:SubTexture, b:SubTexture) return b.height - a.height);
 	}
-	
+
 	/**
 	*複数のサブテクスチャを幅の降順にソートする
 	* @param	subTextures サブテクスチャの集合
@@ -179,7 +179,7 @@ class TexturePacking
 	/**
 	 * 再々スタートもう負けない
 **/
-/*
+	/*
 	private static function algorrithm(subTextures:Array<SubTexture>, regions:Array<Region>):Array<Region>
 	{
 		var area_num:Int = 0;
@@ -259,23 +259,31 @@ class TexturePacking
 	}*/
 	/**
 	*alphasubTexruesをsubTexturesからつくる
+	* @param	alphas	AlphaSubTextureの集合
+	* @param	subTextures	SubTextureの集合
 **/
+
 	private static function makeAlphaArray(alphas:Array<AlphaSubTexture>, subTextures:Array<SubTexture>):Void
 	{
-		for(sub in subTextures){
-			var alpha:AlphaSubTexture = {width:sub.width,height:sub.height,rotated:false};
+		for (sub in subTextures)
+		{
+			var alpha:AlphaSubTexture = {width:sub.width, height:sub.height, rotated:false};
 			alphas.push(alpha);
 		}
 	}
-	
+
 	/**
 	*FFDHアルゴリズム
+	* @param	subTextures	サブテクスチャの集合
+	* @return	Regionの集合
 **/
+
 	private static function ffdhAlgorithm(subTextures:Array<SubTexture>):Array<Region>
 	{
 		var regions:Array<Region> = [];
-		
-		for(textureSize in [64,128,256,512,1024,2048]){
+
+		for (textureSize in [64, 128, 256, 512, 1024, 2048])
+		{
 			size = textureSize;
 			regions = [];
 			var alphas:Array<AlphaSubTexture> = [];
@@ -284,43 +292,53 @@ class TexturePacking
 			var x:Int = 0;
 			var y:Int = 0;
 			var level:Int = 0;
-			for(alpha in alphas){
-				if(alpha.rotated){
-					if(x + alpha.height < size){
-						if(y + alpha.width < size){
-						regions.push({x:x,y:y,width:alpha.width,height:alpha.height,rotated:true});
-						if(x == 0)	level += alpha.width;
-						x += alpha.height;
+			for (alpha in alphas)
+			{
+				if (alpha.rotated)
+				{
+					if (x + alpha.height < size)
+					{
+						if (y + alpha.width < size)
+						{
+							regions.push({x:x, y:y, width:alpha.width, height:alpha.height, rotated:true});
+							if (x == 0) level += alpha.width;
+							x += alpha.height;
 						}
-					}else{
+					} else
+					{
 						x = 0;
-						if(y + alpha.width < size){
-						regions.push({x:x,y:level,width:alpha.width,height:alpha.height,rotated:true});
-						x += alpha.height;
-						y = level;
-						level += alpha.width;
+						if (y + alpha.width < size)
+						{
+							regions.push({x:x, y:level, width:alpha.width, height:alpha.height, rotated:true});
+							x += alpha.height;
+							y = level;
+							level += alpha.width;
 						}
 					}
-				}
-				else{
-					if(x + alpha.width < size){
-					if(y + alpha.height < size){ 
-						regions.push({x:x,y:y,width:alpha.width,height:alpha.height,rotated:false});
-						if(x == 0)	level += alpha.height;
-						x += alpha.width;
-					}
-					}else{
+				} else
+				{
+					if (x + alpha.width < size)
+					{
+						if (y + alpha.height < size)
+						{
+							regions.push({x:x, y:y, width:alpha.width, height:alpha.height, rotated:false});
+							if (x == 0) level += alpha.height;
+							x += alpha.width;
+						}
+					} else
+					{
 						x = 0;
-						if(y + alpha.height < size){
-						regions.push({x:x,y:level,width:alpha.width,height:alpha.height,rotated:false});
-						x += alpha.width;
-						y = level;
-						level += alpha.height;
+						if (y + alpha.height < size)
+						{
+							regions.push({x:x, y:level, width:alpha.width, height:alpha.height, rotated:false});
+							x += alpha.width;
+							y = level;
+							level += alpha.height;
 						}
 					}
 				}
 			}
-			if(regions.length == TEXTURE_NUMBER) break;
+			if (regions.length == TEXTURE_NUMBER) break;
 		}
 		return regions;
 	}
